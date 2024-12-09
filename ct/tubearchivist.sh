@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# bash -c "$(wget -qLO - https://raw.githubusercontent.com/perplexes/ProxmoxVE/main/ct/tubearchivist.sh)"
+
 source <(curl -s https://raw.githubusercontent.com/perplexes/ProxmoxVE/main/misc/build.func)
 
 function header_info {

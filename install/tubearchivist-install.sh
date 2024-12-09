@@ -36,18 +36,27 @@ path.repo: /usr/share/elasticsearch/data/snapshot
 network.host: 0.0.0.0
 EOF
 
-# Set Elasticsearch password
-$STD /usr/share/elasticsearch/bin/elasticsearch-setup-passwords auto | tee /root/elastic_passwords.txt
-
 # Configure Java heap size
 cat <<EOF > /etc/elasticsearch/jvm.options.d/heap.options
 -Xms1g
 -Xmx1g
 EOF
 
-# Start and enable Elasticsearch
+# Reload systemd and start Elasticsearch
+$STD systemctl daemon-reload
 $STD systemctl enable elasticsearch
 $STD systemctl start elasticsearch
+
+# Wait for Elasticsearch to start
+msg_info "Waiting for Elasticsearch to start..."
+while ! curl -s localhost:9200 >/dev/null; do
+    sleep 5
+done
+
+# Get and save the elastic password
+ELASTIC_PASS=$(/usr/share/elasticsearch/bin/elasticsearch-setup-passwords auto | grep "elastic = " | cut -d' ' -f3)
+echo "ELASTIC_PASSWORD=$ELASTIC_PASS" > /root/.elastic_credentials
+
 msg_ok "Installed and Configured Elasticsearch"
 
 msg_info "Configuring Redis"
@@ -58,7 +67,7 @@ $STD systemctl start redis
 msg_ok "Configured Redis"
 
 msg_info "Creating Directories"
-mkdir -p /cache /youtube /app
+mkdir -p /cache /youtube /app /app/cache
 msg_ok "Created Directories"
 
 msg_info "Installing TubeArchivist"
@@ -81,10 +90,51 @@ $STD sed -i 's/^user www\-data\;$/user root\;/' /etc/nginx/nginx.conf
 cat <<EOF > /app/.env
 ES_URL=http://localhost:9200
 REDIS_HOST=localhost
+REDIS_PORT=6379
 TA_USERNAME=tubearchivist
 TA_PASSWORD=verysecret
-ELASTIC_PASSWORD=$(grep "elastic = " /root/elastic_passwords.txt | cut -d' ' -f3)
+ELASTIC_PASSWORD=$(cat /root/.elastic_credentials | cut -d'=' -f2)
+HOST_UID=0
+HOST_GID=0
+DOWNLOAD_DIR=/youtube
+CACHE_DIR=/app/cache
+VIDEO_QUALITY=1080
+CONCURRENT_DL=1
+ENABLE_CAST=0
 TZ=UTC
+EOF
+
+# Configure application settings
+cat <<EOF > /app/ta_config.json
+{
+    "application": {
+        "pagination": 50,
+        "downloads": "pending",
+        "default_view": "grid",
+        "channel_size": "small",
+        "channel_playlist_size": "small",
+        "playlist_size": "small",
+        "download_format": {
+            "format": "bv*[height<=?1080][ext=mp4]+ba[ext=m4a]/bv*[height<=?1080]+ba/b[height<=?1080] / wv*+ba/w",
+            "format_config": {
+                "video_codec": "h264",
+                "audio_codec": "aac",
+                "container": "mp4"
+            }
+        }
+    },
+    "scheduler": {
+        "enable_scheduler": true,
+        "start_schedule_at": "02:00",
+        "check_interval": 180,
+        "download_interval": 60,
+        "reindex_interval": 60,
+        "reindex_time": "03:00",
+        "backup_time": "04:00",
+        "backup_interval": 1,
+        "enable_backup": true
+    }
+}
 EOF
 
 # Make run script executable
