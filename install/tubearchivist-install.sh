@@ -39,10 +39,25 @@ msg_ok "Set up Elasticsearch directories"
 # Configure Elasticsearch
 cat <<EOF > /etc/elasticsearch/elasticsearch.yml
 xpack.security.enabled: true
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.client_authentication: required
+xpack.security.transport.ssl.keystore.path: elastic-certificates.p12
+xpack.security.transport.ssl.truststore.path: elastic-certificates.p12
 discovery.type: single-node
 path.repo: /usr/share/elasticsearch/data/snapshot
 network.host: 0.0.0.0
 EOF
+
+# Generate SSL certificates for Elasticsearch
+msg_info "Generating SSL certificates"
+cd /usr/share/elasticsearch
+$STD /usr/share/elasticsearch/bin/elasticsearch-certutil ca --out elastic-stack-ca.p12 --pass ""
+$STD /usr/share/elasticsearch/bin/elasticsearch-certutil cert --ca elastic-stack-ca.p12 --ca-pass "" --out elastic-certificates.p12 --pass ""
+chown elasticsearch:elasticsearch elastic-certificates.p12
+mv elastic-certificates.p12 /etc/elasticsearch/
+cd -
+msg_ok "Generated SSL certificates"
 
 # Configure Java heap size
 cat <<EOF > /etc/elasticsearch/jvm.options.d/heap.options
