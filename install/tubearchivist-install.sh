@@ -28,6 +28,14 @@ echo "deb https://artifacts.elastic.co/packages/8.x/apt stable main" > /etc/apt/
 $STD apt-get update
 $STD apt-get install -y elasticsearch
 
+# Create and set permissions for Elasticsearch directories
+msg_info "Setting up Elasticsearch directories"
+mkdir -p /usr/share/elasticsearch/data
+mkdir -p /usr/share/elasticsearch/logs
+chown -R elasticsearch:elasticsearch /usr/share/elasticsearch
+chmod -R 2750 /usr/share/elasticsearch
+msg_ok "Set up Elasticsearch directories"
+
 # Configure Elasticsearch
 cat <<EOF > /etc/elasticsearch/elasticsearch.yml
 xpack.security.enabled: true
