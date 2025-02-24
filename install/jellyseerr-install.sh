@@ -37,7 +37,7 @@ $STD npm install -g pnpm
 msg_ok "Installed pnpm"
 
 msg_info "Installing Jellyseerr (Patience)"
-git clone -q https://github.com/Fallenbagel/jellyseerr.git /opt/jellyseerr
+git clone --depth 1 https://github.com/Fallenbagel/jellyseerr.git /opt/jellyseerr
 cd /opt/jellyseerr
 $STD git checkout main
 export CYPRESS_INSTALL_BINARY=0
